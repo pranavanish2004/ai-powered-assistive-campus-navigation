@@ -1,0 +1,178 @@
+{
+  "nodes": [
+    {
+      "id": "main_gate",
+      "name": "Main Gate",
+      "latitude": 17.594,
+      "longitude": 78.123,
+      "node_type": "landmark",
+      "is_accessible": true,
+      "landmark_description": "The main entrance to campus, facing the highway."
+    },
+    {
+      "id": "admin_block",
+      "name": "Administration Block",
+      "latitude": 17.594808,
+      "longitude": 78.123377,
+      "node_type": "building_entrance",
+      "is_accessible": true,
+      "landmark_description": "A large building with a ramp at the front entrance."
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "latitude": 17.595347,
+      "longitude": 78.124037,
+      "node_type": "building_entrance",
+      "is_accessible": true,
+      "landmark_description": "The central library, glass-fronted entrance."
+    },
+    {
+      "id": "biomedical",
+      "name": "Biomedical Engineering Building",
+      "latitude": 17.595931,
+      "longitude": 78.124791,
+      "node_type": "building_entrance",
+      "is_accessible": true,
+      "landmark_description": "Entrance has a step-free ramp on the left side."
+    },
+    {
+      "id": "canteen",
+      "name": "Student Canteen",
+      "latitude": 17.595123,
+      "longitude": 78.124414,
+      "node_type": "amenity",
+      "is_accessible": true,
+      "landmark_description": "Open-air canteen, look for the smell of food and clatter of trays."
+    },
+    {
+      "id": "sncc",
+      "name": "SNCC (Student Activity Centre)",
+      "latitude": 17.595976,
+      "longitude": 78.123283,
+      "node_type": "landmark",
+      "is_accessible": true,
+      "landmark_description": "Large open hall used for events."
+    },
+    {
+      "id": "medical_centre",
+      "name": "Medical Centre",
+      "latitude": 17.593281,
+      "longitude": 78.12267,
+      "node_type": "amenity",
+      "is_accessible": true,
+      "landmark_description": "Single-story building, step-free entrance."
+    },
+    {
+      "id": "hostel_h1",
+      "name": "Hostel H1",
+      "latitude": 17.593326,
+      "longitude": 78.123565,
+      "node_type": "building_entrance",
+      "is_accessible": true,
+      "landmark_description": "Reachable via a step-free ramp from the Medical Centre side; the Main Gate shortcut has stairs."
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_gate_admin",
+      "from_node_id": "main_gate",
+      "to_node_id": "admin_block",
+      "distance_meters": 118,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_admin_library",
+      "from_node_id": "admin_block",
+      "to_node_id": "library",
+      "distance_meters": 111,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_library_biomedical",
+      "from_node_id": "library",
+      "to_node_id": "biomedical",
+      "distance_meters": 124,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_library_canteen",
+      "from_node_id": "library",
+      "to_node_id": "canteen",
+      "distance_meters": 57,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_canteen_sncc",
+      "from_node_id": "canteen",
+      "to_node_id": "sncc",
+      "distance_meters": 184,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_admin_sncc",
+      "from_node_id": "admin_block",
+      "to_node_id": "sncc",
+      "distance_meters": 156,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_gate_medical",
+      "from_node_id": "main_gate",
+      "to_node_id": "medical_centre",
+      "distance_meters": 105,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_medical_admin",
+      "from_node_id": "medical_centre",
+      "to_node_id": "admin_block",
+      "distance_meters": 223,
+      "path_type": "outdoor_path",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": null
+    },
+    {
+      "id": "e_gate_hostel_stairs",
+      "from_node_id": "main_gate",
+      "to_node_id": "hostel_h1",
+      "distance_meters": 115,
+      "path_type": "stairs",
+      "is_accessible": false,
+      "bidirectional": true,
+      "landmark_description": "A short staircase shortcut down to Hostel H1."
+    },
+    {
+      "id": "e_medical_hostel_ramp",
+      "from_node_id": "medical_centre",
+      "to_node_id": "hostel_h1",
+      "distance_meters": 114,
+      "path_type": "ramp",
+      "is_accessible": true,
+      "bidirectional": true,
+      "landmark_description": "The longer, step-free route to Hostel H1 via a ramp."
+    }
+  ]
+}
