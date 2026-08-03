@@ -142,9 +142,34 @@ devices; see `docs/architecture.md` for the testing strategy rationale).
 
 - ✅ **Phase 1.1 — Project Foundation** (regenerated: proper packaging, improved logging/config/exceptions)
 - ✅ **Phase 1.2 — Navigation Core** (campus graph, Dijkstra/A*/accessibility routing, GPS snapping, state machine, deterministic Safety Engine, FastAPI endpoints)
-- ⬜ Phase 1.3 — Vision System
+- ✅ **Phase 1.3 — Vision Pipeline** (camera abstraction + async capture, YOLOv8 detection, OCR, monocular depth, IoU tracking, obstacle events feeding the Safety Engine, FastAPI endpoints)
 - ⬜ Phase 1.4 — AI Reasoning (Decision Engine, RAG, MLLM)
 - ⬜ Phase 1.5 — System Integration
 - ⬜ Deployment
 
-Do not proceed to Phase 1.3 until Phase 1.2 is explicitly approved.
+Do not proceed to Phase 1.4 until Phase 1.3 is explicitly approved.
+
+### Phase 1.3 at a glance
+
+Every vision component has a heavyweight-ML-free default so the app boots
+and is fully testable without the optional `[vision]` extra installed:
+
+| Component | Default (always available) | Real backend (optional `[vision]` extra) |
+|---|---|---|
+| Object detection | `MockObjectDetector` | `YOLOv8Detector` (ultralytics) |
+| OCR | `MockOCRService` | `EasyOCRService` (easyocr) |
+| Depth estimation | `HeuristicDepthEstimator` (bbox-size heuristic) | `MiDaSDepthEstimator` (torch.hub) |
+| Object tracking | `IOUTracker` (pure Python, always real) | — |
+| Landmark detection | `NullLandmarkDetector` (placeholder — Phase 2 per spec) | — |
+| Camera source | `OpenCVCamera` (USB) | `IPCameraSource` (DroidCam/IP Webcam), `VideoFileCamera` |
+
+Switch backends via `Settings` (`detector_backend`, `ocr_backend`,
+`depth_backend`, `camera_source_type`) — no code changes needed. New
+endpoints: `POST /vision/start`, `POST /vision/stop`, `GET /vision/status`,
+`GET /vision/camera/status`, `GET /vision/detections`,
+`GET /vision/obstacles`, `GET /vision/diagnostics`.
+
+Obstacle detection feeds the existing Phase 1.2 `SafetyEngine` through one
+new, purely additive method (`evaluate_obstacles`) — `evaluate()` and
+every other Phase 1.2 API is unchanged. See `docs/architecture.md` §11 for
+the full integration design.

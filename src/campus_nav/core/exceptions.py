@@ -167,3 +167,39 @@ class InvalidStateTransitionError(FatalError):
     navigating). Fatal because it indicates a logic bug in the caller, not
     an environmental condition the user caused — it should surface loudly
     during development/testing rather than be silently ignored."""
+
+
+# ===========================================================================
+# Vision Pipeline (Phase 1.3)
+# ===========================================================================
+class DetectionError(RecoverableError):
+    """Object detection failed on a given frame (e.g. malformed frame,
+    inference backend error). Recoverable: the vision pipeline should skip
+    the frame and continue, not crash navigation — obstacle detection is a
+    supplementary safety signal, not the primary navigation mechanism."""
+
+
+class OCRError(RecoverableError):
+    """OCR failed to process a frame or region of interest. Recoverable:
+    the assistant should simply have no text to report for this frame."""
+
+
+class DepthEstimationError(RecoverableError):
+    """Monocular depth estimation failed for a detected object. Recoverable:
+    the object can still be reported without a distance estimate, with
+    lower confidence."""
+
+
+class TrackingError(RecoverableError):
+    """The object tracker failed to update (e.g. inconsistent detection
+    input). Recoverable: tracking can reset and resume from the next frame
+    without losing overall vision pipeline operation."""
+
+
+class ModelLoadError(RecoverableError):
+    """A vision model (YOLO weights, OCR model, depth model) failed to
+    load. Recoverable rather than fatal: per the Phase 1.1 architecture
+    review, vision is a supplementary safety signal — navigation via the
+    route/state machine must continue even if vision is entirely
+    unavailable, with the Vision Pipeline reporting itself as unavailable
+    rather than taking down the whole application."""

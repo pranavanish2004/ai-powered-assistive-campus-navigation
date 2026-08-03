@@ -226,3 +226,147 @@ investment, not an embarrassment to hide:
 - `SafetyEngine` currently evaluates route-adherence and confidence only;
   Phase 1.3 will extend its mandate to vision-based obstacle detection,
   feeding into the same deterministic, LLM-free SAFETY lane.
+
+---
+
+# Phase 1.3 — Vision Pipeline
+
+## 11. Integration with Phase 1.2 (the key design decision)
+
+The single most important architectural choice in Phase 1.3 is *how*
+vision output reaches the Safety Engine without navigation depending on
+vision:
+
+```
+navigation/                          vision/
+  engine/safety_engine.py              pipeline/vision_service.py
+    evaluate(...)          [unchanged]   -> VisionPipeline.process_frame()
+    evaluate_obstacles(...)  [NEW] <----- build_obstacle_events(result)
+         ^                                       |
+         |                                       v
+    interfaces/obstacle_interface.py (ObstacleEvent, ObstaclePosition)
+```
+
+`ObstacleEvent` lives in `interfaces/`, not in `vision/` or `navigation/`.
+`SafetyEngine` depends on this shared, abstract vocabulary; `vision/`
+depends on `SafetyEngine.evaluate_obstacles()`. The dependency arrow never
+points from `navigation/` into `vision/` — this is what guarantees
+navigation keeps working with zero code changes if vision is completely
+absent (no camera attached, `[vision]` extra not installed, camera
+hardware failure). `evaluate()` (Phase 1.2's route-adherence logic) is
+**byte-for-byte unchanged**; `evaluate_obstacles()` is a new, independent
+method on the same class.
+
+## 12. Vision Pipeline Architecture
+
+```
+CameraManager (async capture thread, bounded ring buffer)
+        │ get_latest_frame()
+        ▼
+VisionService (processing thread, own target FPS)
+        │ process_frame()
+        ▼
+VisionPipeline
+   ├─ ObjectDetectorInterface.detect()        -> Detection[]
+   ├─ ObjectTrackerInterface.update()          -> TrackedObject[] (persistent ids)
+   ├─ DepthEstimatorInterface.estimate_depth()  -> DepthEstimate (per tracked object)
+   ├─ OCRInterface.read_text()                  -> OCRResult[]
+   └─ LandmarkDetectorInterface.detect_landmarks() -> LandmarkMatch[]
+        │
+        ▼
+   VisionFrameResult
+        │
+        ▼
+build_obstacle_events()  (object detection policy: ignore/warn per category+position+distance)
+        │
+        ▼
+   ObstacleEvent[]  ──► SafetyEngine.evaluate_obstacles() ──► SafetyDecision ──► VoiceGuidance (SAFETY lane)
+                    └─► GET /vision/obstacles (diagnostic + future Decision Engine input)
+```
+
+Two independent background threads exist per running vision session:
+`CameraManager`'s capture loop (fast, cheap) and `VisionService`'s
+processing loop (slow, expensive) — see their docstrings for why they are
+deliberately not the same loop.
+
+## 13. Object Detection Policy (implemented, not just described)
+
+`vision/safety/obstacle_events.py` implements the specification's policy
+as deterministic, unit-tested logic:
+
+| Category | Beside path | Blocking + far | Blocking + close |
+|---|---|---|---|
+| Door / Ramp / Stairs | announced | announced | announced |
+| Bench / Tree / Pole / Vehicle / Animal / Unknown | silent | silent | "Obstacle ahead." |
+| Person | silent unless close | — | "Someone is approaching." |
+
+"Close" is `distance_meters <= Settings.depth_safe_distance_meters`
+(default 1.5m); a missing depth estimate is treated as "close" (warn
+conservatively) rather than "far" (stay silent) — see
+`obstacle_events._announcement_for`'s docstring for why underestimating
+danger is the worse failure mode.
+
+## 14. Testing Strategy Additions
+
+- **Mock camera tests** (`test_camera_sources.py`): `IPCameraSource` and
+  `VideoFileCamera` tested against a mocked `cv2.VideoCapture`, matching
+  how `OpenCVCamera`'s own hardware dependency was isolated in Phase 1.1.
+- **Mock detector tests** (`test_detection.py`, `test_vision_pipeline.py`):
+  every detection/OCR/depth/landmark component has a full contract test
+  suite using zero ML dependencies.
+- **Tracking tests** (`test_tracking.py`): persistent id continuity,
+  occlusion-tolerance window, smoothing, and reset — all exact,
+  deterministic assertions since `IOUTracker` is pure Python.
+- **Policy tests** (`test_obstacle_events.py`): every branch of the object
+  detection policy table above has a dedicated test.
+- **Integration tests** (`test_vision_service.py`, `test_vision_api.py`):
+  full `CameraManager` + `VisionPipeline` + FastAPI request/response
+  cycles, using a `FakeCamera` injected via `create_app`'s new
+  `vision_service_factory` parameter — no physical camera required.
+- **Regression guard** (`test_safety_engine_obstacles.py`): explicitly
+  asserts `evaluate()`'s pre-existing behavior is unaffected by the new
+  `evaluate_obstacles()` method.
+
+Total suite: 381 tests (up from 248 at the end of Phase 1.2), 88% coverage
+maintained. New 0%-coverage files are exactly the ones requiring real ML
+weights/GPU (`yolo_detector.py`, `easyocr_service.py`,
+`midas_depth_estimator.py`) — consistent with the existing policy for
+hardware-dependent adapters.
+
+## 15. Completed Work (Phase 1.3)
+
+- Camera: `IPCameraSource`, `VideoFileCamera`, `camera_factory.create_camera()`, all implementing the unchanged Phase 1.1 `CameraInterface`
+- `CameraManager`: async capture thread, bounded ring buffer, diagnostics
+- Detection: `ObjectDetectorInterface`, `BoundingBox`, `Detection`, `MockObjectDetector`, `YOLOv8Detector` (optional)
+- Categories: `ObjectCategory`, COCO label mapping, always-announce/conditional classification
+- OCR: `OCRInterface`, `MockOCRService`, `EasyOCRService` (optional)
+- Depth: `DepthEstimatorInterface`, `HeuristicDepthEstimator` (default), `MiDaSDepthEstimator` (optional)
+- Tracking: `ObjectTrackerInterface`, `IOUTracker` (greedy IoU matching, occlusion tolerance, smoothing)
+- Landmark: `LandmarkDetectorInterface`, `NullLandmarkDetector` (Phase 2 placeholder per spec)
+- `VisionPipeline`, `VisionService`, `vision_factory.py` (Settings-driven backend wiring)
+- `ObstacleEvent`/`ObstaclePosition` shared interface + `build_obstacle_events()` (object detection policy)
+- `SafetyEngine.evaluate_obstacles()` — additive Phase 1.2 integration point
+- FastAPI: `/vision/start`, `/vision/stop`, `/vision/status`, `/vision/camera/status`, `/vision/detections`, `/vision/obstacles`, `/vision/diagnostics`
+- `Settings` extended with camera/detector/OCR/depth/tracking configuration (all additive, all with safe defaults)
+- 133 new tests (unit + integration), zero regressions to the 248 Phase 1.1/1.2 tests
+
+## 16. Remaining Work / Explicitly Out of Scope (per Phase 1.3 instructions)
+
+- RAG, MLLM, conversational AI, Dashboard integration, Decision Engine — Phase 1.4
+- Real landmark recognition model training/evaluation — Phase 2 (per original spec)
+- Calibrating `HeuristicDepthEstimator`/`MiDaSDepthEstimator` against real campus footage — needs physical deployment
+- Fusing obstacle events into `NavigationStateMachine` transitions (e.g. auto-rerouting around a persistent obstacle) — Phase 1.4 Decision Engine's job, not Phase 1.3's
+
+## 17. Risks (Phase 1.3 additions)
+
+- **Uncalibrated depth estimates** — both `HeuristicDepthEstimator` and
+  `MiDaSDepthEstimator` produce approximate, uncalibrated distances (see
+  their docstrings). Acceptable for a pilot demo; real deployment needs
+  calibration against known campus distances.
+- **Single-camera, single-process VisionService** — like the Phase 1.2
+  navigation engine registry, this is a process-wide singleton, not
+  horizontally scalable. Acceptable for one pilot device; revisit before
+  any multi-camera or multi-instance deployment.
+- **YOLOv8/EasyOCR/MiDaS licensing and size** — `ultralytics` is AGPL-3.0
+  (same note as the original Phase 1.1 review); `torch` is a large
+  dependency, hence being fully optional.

@@ -24,6 +24,7 @@ from fastapi import HTTPException, Request
 
 from campus_nav.navigation.engine.navigation_engine import NavigationEngine
 from campus_nav.navigation.graph.models import CampusGraph
+from campus_nav.vision.pipeline.vision_service import VisionService
 
 
 def get_graph(request: Request) -> CampusGraph:
@@ -43,3 +44,12 @@ def get_navigation_engine(navigation_session_id: str, request: Request) -> Navig
             detail=f"No active navigation session with id {navigation_session_id!r}.",
         )
     return engine
+
+
+def get_vision_service(request: Request) -> VisionService:
+    """Phase 1.3: the single, process-wide VisionService instance (there is
+    one camera on the pilot device, unlike navigation sessions which are
+    per-user). Created at startup (see api/main.py) but not started until
+    POST /vision/start is called, since running inference continuously is
+    expensive and shouldn't happen just because the server booted."""
+    return request.app.state.vision_service

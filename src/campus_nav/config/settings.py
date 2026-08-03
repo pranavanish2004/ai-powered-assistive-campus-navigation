@@ -118,6 +118,104 @@ class Settings(BaseSettings):
         "warning and the Navigation Engine may trigger rerouting.",
     )
 
+    # --- Phase 1.3: Camera source selection ---
+    camera_source_type: Literal["usb", "ip", "file"] = Field(
+        default="usb",
+        description="'usb' uses OpenCVCamera against a local device index. "
+        "'ip' connects to a network camera stream (e.g. DroidCam, IP "
+        "Webcam) via camera_ip_url. 'file' replays a video file via "
+        "camera_video_file_path — useful for deterministic development "
+        "and demos without physical hardware.",
+    )
+    camera_ip_url: str | None = Field(
+        default=None,
+        description="Stream URL for camera_source_type='ip', e.g. "
+        "'http://192.168.1.5:4747/video' for a typical DroidCam setup.",
+    )
+    camera_video_file_path: str | None = Field(
+        default=None,
+        description="Path to a video file for camera_source_type='file'.",
+    )
+    camera_loop_video_file: bool = Field(
+        default=True,
+        description="If True, VideoFileCamera restarts from the beginning "
+        "when it reaches the end of the file, rather than reporting "
+        "unavailable — convenient for long-running demos/tests.",
+    )
+    frame_buffer_size: int = Field(
+        default=5,
+        gt=0,
+        description="Maximum number of frames CameraManager holds in its "
+        "ring buffer. Small on purpose: for navigation guidance, a stale "
+        "frame is actively misleading, so the buffer favors recency over "
+        "throughput and drops old frames rather than growing unbounded.",
+    )
+    vision_processing_fps: float = Field(
+        default=5.0,
+        gt=0,
+        description="Target rate at which the vision pipeline processes "
+        "frames, independent of the camera's native capture rate. Object "
+        "detection/OCR/depth are all far more expensive than frame "
+        "capture, so processing deliberately runs slower than capture.",
+    )
+
+    # --- Phase 1.3: Object detection ---
+    detector_backend: Literal["yolov8", "mock"] = Field(
+        default="mock",
+        description="'mock' requires no model weights or ML dependencies "
+        "and is the safe default so the application boots without the "
+        "optional [vision] extra installed. 'yolov8' requires "
+        "`pip install -e '.[vision]'` and a model weights file.",
+    )
+    yolo_model_path: str = Field(
+        default="yolov8n.pt",
+        description="Path or Ultralytics model name for YOLOv8 weights. "
+        "Only read when detector_backend='yolov8'.",
+    )
+
+    # --- Phase 1.3: OCR ---
+    ocr_backend: Literal["easyocr", "mock"] = Field(
+        default="mock",
+        description="'mock' is the safe default requiring no ML "
+        "dependencies. 'easyocr' requires `pip install -e '.[vision]'`.",
+    )
+    ocr_confidence_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
+
+    # --- Phase 1.3: Depth estimation ---
+    depth_backend: Literal["midas", "heuristic"] = Field(
+        default="heuristic",
+        description="'heuristic' estimates distance from bounding-box size "
+        "with no ML dependencies and no model download — a reasonable "
+        "default for a pilot without a depth model deployed yet. 'midas' "
+        "requires `pip install -e '.[vision]'` and downloads pretrained "
+        "MiDaS weights via torch.hub on first use.",
+    )
+    depth_safe_distance_meters: float = Field(
+        default=1.5,
+        gt=0,
+        description="An obstacle closer than this is considered near "
+        "enough to warrant a safety announcement if it is also blocking "
+        "the path (see vision.safety.obstacle_events).",
+    )
+
+    # --- Phase 1.3: Object tracking ---
+    tracking_iou_threshold: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Minimum IoU (intersection-over-union) between a new "
+        "detection and an existing track for them to be matched as the "
+        "same physical object across frames.",
+    )
+    tracking_max_missed_frames: int = Field(
+        default=10,
+        ge=0,
+        description="A track survives this many consecutive frames with no "
+        "matching detection before being dropped — handling brief "
+        "occlusions (e.g. someone briefly walking between the camera and "
+        "the tracked obstacle) without losing its persistent id.",
+    )
+
     @field_validator("log_dir")
     @classmethod
     def _ensure_log_dir_exists(cls, value: Path) -> Path:

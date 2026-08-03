@@ -24,6 +24,7 @@ from dataclasses import dataclass
 
 from campus_nav.interfaces.localization_interface import LocalizationResult
 from campus_nav.interfaces.navigation_interface import NavEvent
+from campus_nav.interfaces.obstacle_interface import ObstacleEvent
 from campus_nav.navigation.graph.geometry import haversine_distance_meters
 from campus_nav.navigation.graph.models import CampusGraph
 from campus_nav.navigation.routing.types import Route
@@ -103,6 +104,34 @@ class SafetyEngine:
                 alert_text="You have moved off the route. Recalculating.",
             )
 
+        return SafetyDecision(event=None, alert_text=None)
+
+    def evaluate_obstacles(self, obstacle_events: list[ObstacleEvent]) -> SafetyDecision:
+        """Evaluate vision-derived obstacle observations for this frame
+        (Phase 1.3 integration point).
+
+        Deliberately separate from `evaluate()` rather than merged into
+        it: route-adherence/confidence and obstacle-avoidance are
+        independent safety concerns with independent inputs (a
+        `LocalizationResult` + `Route` vs. a list of `ObstacleEvent`s from
+        the Vision Pipeline), and keeping them as separate methods means
+        neither Phase 1.2's route logic nor this method's obstacle logic
+        needs to know about the other's data shapes. Both still funnel
+        through the same `SafetyDecision` type and the same SAFETY-priority
+        voice lane (see `VoiceGuidance.announce_safety_alert`) -- there is
+        exactly one way obstacle warnings and route warnings reach the
+        user, they just originate from different evaluation paths.
+
+        Returns the first blocking obstacle's announcement (if any) with
+        `event=None` -- obstacle events do not themselves drive
+        `NavigationStateMachine` transitions in Phase 1.3 (that fusion,
+        e.g. "reroute around a persistent obstacle", is explicitly a
+        Phase 1.4 Decision Engine responsibility) — this method only
+        decides whether something must be said *right now*.
+        """
+        for event in obstacle_events:
+            if event.announce_text:
+                return SafetyDecision(event=None, alert_text=event.announce_text)
         return SafetyDecision(event=None, alert_text=None)
 
     @staticmethod
