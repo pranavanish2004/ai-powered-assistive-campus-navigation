@@ -143,11 +143,51 @@ devices; see `docs/architecture.md` for the testing strategy rationale).
 - ✅ **Phase 1.1 — Project Foundation** (regenerated: proper packaging, improved logging/config/exceptions)
 - ✅ **Phase 1.2 — Navigation Core** (campus graph, Dijkstra/A*/accessibility routing, GPS snapping, state machine, deterministic Safety Engine, FastAPI endpoints)
 - ✅ **Phase 1.3 — Vision Pipeline** (camera abstraction + async capture, YOLOv8 detection, OCR, monocular depth, IoU tracking, obstacle events feeding the Safety Engine, FastAPI endpoints)
-- ⬜ Phase 1.4 — AI Reasoning (Decision Engine, RAG, MLLM)
+- ✅ **Phase 1.4 — AI Reasoning** (RAG, pluggable MLLM, Decision Engine, Dashboard, conversational context — all complete)
+  - ✅ 1.4a — RAG knowledge base (graph landmark descriptions + static campus knowledge, keyword default / Chroma optional)
+  - ✅ 1.4b — Dashboard Integration (IITH Dashboard: bus schedule, city bus, mess menu)
+  - ✅ 1.4c — Pluggable MLLM provider abstraction (Anthropic / OpenAI / Gemini / local Llama via Ollama / mock)
+  - ✅ 1.4d — Decision Engine (fuses RAG + navigation + vision + dashboard context; MLLM used only to phrase the final answer)
+  - ✅ 1.4e — Conversational AI (`POST /assistant/ask`, `GET /assistant/status`)
 - ⬜ Phase 1.5 — System Integration
+- ⬜ Flutter application
 - ⬜ Deployment
 
-Do not proceed to Phase 1.4 until Phase 1.3 is explicitly approved.
+Do not proceed past the current Phase 1.4 milestone until it is explicitly approved.
+
+### Phase 1.4b at a glance — Dashboard Integration
+
+Before writing any code, the actual open-source [IITH Dashboard backend](https://github.com/LambdaIITH/Dashboard)
+was read directly (not assumed from its marketing page). Findings that
+shaped this design:
+
+- Only three endpoints are genuinely public, unauthenticated: bus schedule
+  (`/transport/`), city bus schedule (`/transport/cityBus`), and the
+  current week's mess menu (`/mess_menu/`). Everything else (timetable,
+  cab-sharing, lost & found, marketplace) requires a real `@iith.ac.in`
+  Google-authenticated session this assistant cannot obtain on a user's
+  behalf, and is intentionally **not** implemented.
+- **The Dashboard has no campus wayfinding data whatsoever** — no
+  buildings, departments, library, medical centre, faculty offices, or
+  accessibility information. It's a student-life utility app, not a
+  campus directory. This confirms, concretely, why the Campus Graph and
+  RAG/local knowledge base (not the Dashboard) must remain the sole
+  source of truth for "where is X" — a design decision made before this
+  research, now verified rather than assumed.
+- It's a no-SLA, community-maintained side project with no rate limiting
+  implemented — treated accordingly (short timeouts, silent graceful
+  degradation, never blocking navigation/vision/safety).
+
+| Component | Default (always available) | Real backend |
+|---|---|---|
+| Dashboard | `MockDashboardRepository` (`dashboard_backend=mock`) | `IITHDashboardRepository` (`dashboard_backend=iith_live`) |
+
+New endpoints: `GET /dashboard/status`, `GET /dashboard/bus-schedule`,
+`GET /dashboard/city-bus-schedule`, `GET /dashboard/mess-menu` — all
+return HTTP 200 even when data is unavailable (`available: false` in the
+body), since that's expected, routine state for this data source, not an
+application error. See `docs/architecture.md` §18 for the full research
+findings and integration design.
 
 ### Phase 1.3 at a glance
 

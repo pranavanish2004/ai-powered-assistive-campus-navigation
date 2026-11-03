@@ -22,6 +22,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException, Request
 
+from campus_nav.assistant.decision_engine import DecisionEngine
+from campus_nav.interfaces.dashboard_interface import DashboardRepositoryInterface
 from campus_nav.navigation.engine.navigation_engine import NavigationEngine
 from campus_nav.navigation.graph.models import CampusGraph
 from campus_nav.vision.pipeline.vision_service import VisionService
@@ -53,3 +55,20 @@ def get_vision_service(request: Request) -> VisionService:
     POST /vision/start is called, since running inference continuously is
     expensive and shouldn't happen just because the server booted."""
     return request.app.state.vision_service
+
+
+def get_dashboard_repository(request: Request) -> DashboardRepositoryInterface:
+    """Phase 1.4b: the single, process-wide dashboard repository. Cheap to
+    construct (no network call happens until a method is actually called),
+    so unlike VisionService there is no separate start/stop lifecycle --
+    it's simply available from startup."""
+    return request.app.state.dashboard_repository
+
+
+def get_decision_engine(request: Request) -> DecisionEngine:
+    """Phase 1.4d: the single, process-wide DecisionEngine. Its RAG
+    knowledge base and MLLM provider are process-wide resources built once
+    at startup; per-request context (navigation/vision/dashboard state) is
+    gathered fresh by api/routers/assistant.py on every call, not baked
+    into this object."""
+    return request.app.state.decision_engine

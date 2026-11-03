@@ -216,6 +216,91 @@ class Settings(BaseSettings):
         "the tracked obstacle) without losing its persistent id.",
     )
 
+    # --- Phase 1.4b: Dashboard integration ---
+    dashboard_backend: Literal["iith_live", "mock"] = Field(
+        default="mock",
+        description="'mock' is the safe default requiring no network "
+        "access. 'iith_live' calls the real, confirmed-public endpoints "
+        "of the community-run IITH Dashboard (bus schedule, city bus "
+        "schedule, mess menu) — see infrastructure/dashboard/"
+        "iith_dashboard_repository.py for exactly which endpoints and why "
+        "only those three. The dashboard is a replaceable enhancement, "
+        "never a dependency the rest of the assistant relies on.",
+    )
+    dashboard_base_url: str = Field(
+        default="https://api.iith.dev",
+        description="Base URL for the IITH Dashboard API. Overridable for "
+        "self-hosted forks or local testing against a fake server.",
+    )
+    dashboard_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description="Per-request timeout for dashboard calls. Kept short "
+        "deliberately: this is a no-SLA, community-run service, and a slow "
+        "dashboard response must never noticeably delay the assistant.",
+    )
+
+    # --- Phase 1.4 refinement: campus data ingestion ---
+    campus_data_directory: str | None = Field(
+        default=None,
+        description="Optional directory scanned at startup for additional "
+        "campus data files (.geojson, .csv, .yaml, .md) via "
+        "CampusDataIngestionPipeline. Nodes/edges are merged into the "
+        "loaded graph and knowledge entries into the RAG knowledge base, "
+        "in addition to (never replacing) the base pilot graph and static "
+        "knowledge file. None (default) means no additional ingestion — "
+        "existing behavior is completely unchanged.",
+    )
+
+    # --- Phase 1.4a: RAG / knowledge base ---
+    rag_backend: Literal["keyword", "tfidf", "chroma", "faiss"] = Field(
+        default="tfidf",
+        description="'tfidf' (TF-IDF cosine similarity) is the default: "
+        "materially better ranking than plain 'keyword' overlap, at zero "
+        "added dependency cost (uses only numpy, already core). 'chroma' "
+        "and 'faiss' use real embedding models (optional [rag] extra) "
+        "for genuine semantic search. All four implement the same "
+        "RAGRepositoryInterface.",
+    )
+    rag_knowledge_path: str = Field(
+        default="data/campus_knowledge.json",
+        description="Path to the static supplementary knowledge base "
+        "(accessibility info, emergency contacts, campus rules) merged "
+        "with facts derived from the campus graph's landmark descriptions.",
+    )
+    rag_top_k: int = Field(
+        default=3, gt=0, description="Number of knowledge documents retrieved per query."
+    )
+
+    # --- Phase 1.4c: Pluggable MLLM provider ---
+    mllm_provider: Literal["mock", "anthropic", "openai", "gemini", "local_llama"] = Field(
+        default="mock",
+        description="'mock' requires no API key or network access and is "
+        "the safe default. Real providers require the optional [llm] "
+        "extra (except 'local_llama', which talks to a local Ollama "
+        "server over HTTP using the already-core httpx dependency).",
+    )
+    mllm_model: str | None = Field(
+        default=None,
+        description="Model name/id passed to the selected provider. None "
+        "means 'use that provider's own default', since each provider's "
+        "reasonable default changes independently of this codebase.",
+    )
+    mllm_max_tokens: int = Field(default=512, gt=0)
+    mllm_api_key: str | None = Field(
+        default=None,
+        description="API key passed explicitly to the provider. If None, "
+        "each provider SDK falls back to its own standard environment "
+        "variable (e.g. ANTHROPIC_API_KEY) — this field is a convenience "
+        "override, not a requirement.",
+    )
+    mllm_base_url: str | None = Field(
+        default=None,
+        description="Override base URL for the selected provider. Used by "
+        "'local_llama' (defaults to http://localhost:11434 if unset) and "
+        "optionally by other providers pointing at a compatible proxy.",
+    )
+
     @field_validator("log_dir")
     @classmethod
     def _ensure_log_dir_exists(cls, value: Path) -> Path:

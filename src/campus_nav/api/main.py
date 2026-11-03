@@ -31,12 +31,17 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from campus_nav.assistant.decision_engine import DecisionEngine
+from campus_nav.assistant.decision_factory import create_decision_engine
 from campus_nav.config.settings import get_settings
 from campus_nav.core.exceptions import CampusNavError, FatalError
 from campus_nav.core.logging_config import configure_logging, get_logger
 from campus_nav.infrastructure.camera.camera_factory import create_camera
+from campus_nav.infrastructure.dashboard.dashboard_factory import create_dashboard_repository
 from campus_nav.infrastructure.database.session import init_db
 from campus_nav.infrastructure.graph.json_repository import JSONGraphRepository
+from campus_nav.infrastructure.ingestion.ingestion_pipeline import CampusDataIngestionPipeline
+from campus_nav.interfaces.dashboard_interface import DashboardRepositoryInterface
 from campus_nav.vision.camera.camera_manager import CameraManager
 from campus_nav.vision.pipeline.vision_factory import create_vision_pipeline
 from campus_nav.vision.pipeline.vision_service import VisionService
@@ -49,6 +54,8 @@ _DEFAULT_GRAPH_PATH = Path(__file__).resolve().parents[3] / "data" / "sample_cam
 def create_app(
     graph_path: str | Path | None = None,
     vision_service_factory: Callable[[], VisionService] | None = None,
+    dashboard_repository_factory: Callable[[], DashboardRepositoryInterface] | None = None,
+    decision_engine_factory: Callable[[], DecisionEngine] | None = None,
 ) -> FastAPI:
     """Build and return a configured FastAPI application.
 
@@ -62,6 +69,18 @@ def create_app(
     exercise the full /vision/* API surface -- start, stop, detections,
     obstacles -- against a `FakeCamera` and `MockObjectDetector` instead of
     requiring physical camera hardware to be attached to the test runner.
+
+    `dashboard_repository_factory`, if provided, is used instead of the
+    default production wiring (mock or real IITH Dashboard client per
+    Settings) to build `app.state.dashboard_repository` -- lets tests
+    inject a controllable fake without making real network calls to a
+    community-run, no-SLA external service.
+
+    `decision_engine_factory`, if provided, is used instead of the default
+    production wiring (RAG + MLLM per Settings) to build
+    `app.state.decision_engine` -- lets tests inject a `DecisionEngine`
+    built from a `MockMLLMProvider` and a small fixture knowledge base,
+    with no real API credentials or network access required.
     """
 
     @asynccontextmanager
@@ -72,6 +91,21 @@ def create_app(
         repository = JSONGraphRepository(graph_path or _DEFAULT_GRAPH_PATH)
         app.state.graph = repository.load()
         app.state.navigation_engines = {}
+
+        # Phase 1.4 refinement: optional additional campus data (GeoJSON/
+        # CSV/YAML/Markdown) merged into the base pilot graph, BEFORE
+        # anything else (vision, decision engine) reads app.state.graph.
+        # Standalone knowledge entries (facts with no associated graph
+        # node) are applied to the knowledge base further below, once the
+        # DecisionEngine (and therefore its RAG repository) exists.
+        ingestion_settings = get_settings()
+        imported_campus_data = None
+        if ingestion_settings.campus_data_directory:
+            ingestion_pipeline = CampusDataIngestionPipeline()
+            imported_campus_data = ingestion_pipeline.import_directory(
+                ingestion_settings.campus_data_directory
+            )
+            ingestion_pipeline.apply_to_graph(imported_campus_data, app.state.graph)
 
         # Phase 1.3: constructed at startup but NOT started -- running
         # camera capture and inference continuously is expensive and
@@ -93,6 +127,29 @@ def create_app(
                 target_fps=settings.vision_processing_fps,
             )
 
+        # Phase 1.4b: cheap to construct (no network call happens until a
+        # method is actually called), unlike VisionService there is no
+        # start/stop lifecycle to manage here.
+        if dashboard_repository_factory is not None:
+            app.state.dashboard_repository = dashboard_repository_factory()
+        else:
+            app.state.dashboard_repository = create_dashboard_repository(get_settings())
+
+        # Phase 1.4d: RAG knowledge base + MLLM provider are process-wide
+        # resources built once here; per-request navigation/vision/
+        # dashboard context is gathered fresh by api/routers/assistant.py
+        # on every call (see DecisionEngine's docstring on why those are
+        # never baked into this object).
+        if decision_engine_factory is not None:
+            app.state.decision_engine = decision_engine_factory()
+        else:
+            app.state.decision_engine = create_decision_engine(get_settings(), app.state.graph)
+
+        if imported_campus_data is not None and imported_campus_data.knowledge_entries:
+            ingestion_pipeline.apply_to_knowledge_base(
+                imported_campus_data, app.state.decision_engine.rag_repository
+            )
+
         logger.info(
             "Application startup complete",
             extra={
@@ -112,6 +169,8 @@ def create_app(
         lifespan=lifespan,
     )
 
+    from campus_nav.api.routers import assistant as assistant_router
+    from campus_nav.api.routers import dashboard as dashboard_router
     from campus_nav.api.routers import graph as graph_router
     from campus_nav.api.routers import navigation as navigation_router
     from campus_nav.api.routers import vision as vision_router
@@ -119,6 +178,8 @@ def create_app(
     app.include_router(graph_router.router)
     app.include_router(navigation_router.router)
     app.include_router(vision_router.router)
+    app.include_router(dashboard_router.router)
+    app.include_router(assistant_router.router)
 
     @app.get("/health", tags=["health"])
     def health_check() -> dict:

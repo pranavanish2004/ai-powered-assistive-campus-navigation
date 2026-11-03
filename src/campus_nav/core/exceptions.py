@@ -203,3 +203,62 @@ class ModelLoadError(RecoverableError):
     route/state machine must continue even if vision is entirely
     unavailable, with the Vision Pipeline reporting itself as unavailable
     rather than taking down the whole application."""
+
+
+# ===========================================================================
+# Dashboard Integration (Phase 1.4)
+# ===========================================================================
+class DashboardError(RecoverableError):
+    """A campus dashboard data source (e.g. the IITH Dashboard API) failed
+    to respond, timed out, or returned malformed data. Recoverable by
+    design: per the original specification, "the system must work even if
+    these APIs are unavailable," and per the Phase 1.4 decision to treat
+    the dashboard as a replaceable, non-core data source — the assistant
+    must continue functioning on the Campus Graph, GPS, Vision, OCR, and
+    RAG/local knowledge base alone if this fails."""
+
+
+# ===========================================================================
+# RAG / Knowledge Base (Phase 1.4a)
+# ===========================================================================
+class RAGError(RecoverableError):
+    """The knowledge base failed to load or search. Recoverable: the
+    Decision Engine should proceed without retrieved context (and say so
+    honestly) rather than fail the entire conversational response."""
+
+
+# ===========================================================================
+# MLLM (Phase 1.4c)
+# ===========================================================================
+class MLLMError(RecoverableError):
+    """The configured MLLM provider failed to generate a response (network
+    failure, API error, missing credentials, provider SDK not installed).
+    Recoverable: per the two-lane safety architecture established since
+    Phase 1.1, the MLLM only ever serves the CONVERSATIONAL lane — its
+    failure must never affect navigation, obstacle warnings, or any
+    SAFETY-priority speech, all of which are deterministic and MLLM-free.
+    The Decision Engine falls back to a plain, honest "I can't answer that
+    right now" rather than crashing or hallucinating a response."""
+
+
+# ===========================================================================
+# Decision Engine (Phase 1.4d)
+# ===========================================================================
+class DecisionEngineError(RecoverableError):
+    """The Decision Engine failed to assemble or process a conversational
+    request. Recoverable: a failed "ask AI" query must never affect active
+    navigation or safety-critical obstacle detection, which run entirely
+    independently of this code path."""
+
+
+# ===========================================================================
+# Campus Data Ingestion (Phase 1.4 refinement)
+# ===========================================================================
+class IngestionError(RecoverableError):
+    """A campus data importer failed to parse a source file (malformed
+    GeoJSON/CSV/YAML/Markdown, missing required fields, invalid
+    coordinates). Recoverable: the ingestion pipeline skips the offending
+    file and logs a clear warning rather than corrupting the Navigation
+    Graph or knowledge base with partial or incorrect data -- silently
+    accepting a malformed coordinate in a navigation-for-the-blind system
+    is a safety concern, not just a data-quality one."""

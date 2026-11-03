@@ -1,0 +1,42 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [78.1270, 17.5965]},
+      "properties": {
+        "id": "research_centre_a",
+        "name": "Interdisciplinary Research Centre A",
+        "node_type": "landmark",
+        "is_accessible": true,
+        "landmark_description": "An illustrative example research centre building.",
+        "aliases": ["IRC-A"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [78.1265, 17.5960]},
+      "properties": {
+        "id": "research_centre_b",
+        "name": "Interdisciplinary Research Centre B",
+        "node_type": "landmark",
+        "is_accessible": true,
+        "landmark_description": "An illustrative example research centre building."
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[78.1270, 17.5965], [78.1265, 17.5960]]
+      },
+      "properties": {
+        "id": "e_research_a_b",
+        "from_node_id": "research_centre_a",
+        "to_node_id": "research_centre_b",
+        "path_type": "outdoor_path",
+        "is_accessible": true
+      }
+    }
+  ]
+}

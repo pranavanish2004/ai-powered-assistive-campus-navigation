@@ -1,0 +1,83 @@
+# ILLUSTRATIVE EXAMPLE DATA -- coordinates are placeholders, not surveyed.
+# See README.md in this directory before using this as a template for
+# real campus data.
+
+nodes:
+  - id: tip
+    name: Technology Innovation Park
+    latitude: 17.5962
+    longitude: 78.1268
+    node_type: landmark
+    is_accessible: true
+    landmark_description: "Technology Innovation Park (TiP) is an IIT Hyderabad research and innovation facility supporting startups and applied research."
+    aliases: ["TiP", "Innovation Park"]
+
+  - id: sports_complex
+    name: Sports Complex
+    latitude: 17.5928
+    longitude: 78.1262
+    node_type: amenity
+    is_accessible: true
+    landmark_description: "The Sports Complex includes outdoor and indoor sporting facilities for students."
+    aliases: ["Sports Ground", "Gymkhana"]
+
+  - id: sac
+    name: Student Activity Centre
+    latitude: 17.5958
+    longitude: 78.1225
+    node_type: landmark
+    is_accessible: true
+    landmark_description: "The Student Activity Centre (SAC) hosts student clubs, cultural activities, and events."
+    aliases: ["SAC"]
+
+  - id: hostel_h2
+    name: Hostel H2
+    latitude: 17.5930
+    longitude: 78.1258
+    node_type: building_entrance
+    is_accessible: true
+    landmark_description: "Hostel H2, a student residence hall."
+
+  - id: parking_main
+    name: Main Gate Parking
+    latitude: 17.5942
+    longitude: 78.1228
+    node_type: amenity
+    is_accessible: true
+    landmark_description: "Visitor and staff parking area near the Main Gate."
+
+edges:
+  - id: e_gate_tip
+    from_node_id: main_gate
+    to_node_id: tip
+    path_type: outdoor_path
+    is_accessible: true
+
+  - id: e_gate_sac
+    from_node_id: main_gate
+    to_node_id: sac
+    path_type: outdoor_path
+    is_accessible: true
+
+  - id: e_hostel_h1_h2
+    from_node_id: hostel_h1
+    to_node_id: hostel_h2
+    path_type: outdoor_path
+    is_accessible: true
+
+  - id: e_hostel_sports
+    from_node_id: hostel_h2
+    to_node_id: sports_complex
+    path_type: outdoor_path
+    is_accessible: true
+
+knowledge:
+  - id: tihan_note
+    title: TiHAN / TiAND Research Datasets
+    content: "TiHAN (Technology Innovation Hub on Autonomous Navigation) at IIT Hyderabad produces camera, LiDAR, radar, GNSS, and SLAM datasets for autonomous systems research. These datasets improve perception (object detection, depth estimation benchmarking) via the existing Vision Pipeline's VideoFileCamera adapter -- point camera_video_file_path at TiHAN footage to evaluate the detection/OCR/depth pipeline against it. TiHAN data is not used as the navigation graph; OpenStreetMap and surveyed campus data serve that role."
+    category: general
+
+  - id: parking_info
+    title: Campus Parking
+    content: "Visitor and staff parking is available near the Main Gate. Additional parking areas exist near academic buildings."
+    category: general

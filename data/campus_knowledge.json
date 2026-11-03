@@ -1,0 +1,38 @@
+[
+  {
+    "id": "accessibility_general",
+    "title": "Campus Accessibility Overview",
+    "content": "IIT Hyderabad campus paths are primarily outdoor and paved. Ramps are available at the Administration Block, Library, Biomedical Engineering Building, and Medical Centre. Hostel H1's main entrance has stairs; use the step-free route via the Medical Centre side instead.",
+    "category": "accessibility"
+  },
+  {
+    "id": "emergency_contacts",
+    "title": "Emergency Contacts",
+    "content": "For a medical emergency on campus, go to or contact the Medical Centre near the Main Gate. For campus security concerns, contact campus security at the Main Gate. In a life-threatening emergency, call 112 (India's national emergency number).",
+    "category": "emergency"
+  },
+  {
+    "id": "medical_centre_info",
+    "title": "Medical Centre",
+    "content": "The Medical Centre is located near the Main Gate and has a step-free, single-story entrance. It provides basic first aid and medical consultation for students and staff.",
+    "category": "medical"
+  },
+  {
+    "id": "campus_rules_navigation",
+    "title": "Campus Navigation Rules",
+    "content": "Pedestrians should keep to marked paths where available. Vehicles have right of way on road crossings; listen carefully for traffic before crossing. This assistant supplements, but does not replace, your cane, guide dog, or orientation and mobility training.",
+    "category": "rules"
+  },
+  {
+    "id": "canteen_info",
+    "title": "Student Canteen",
+    "content": "The Student Canteen is an open-air facility near the Library, offering snacks and meals throughout the day. For the current mess menu, ask the assistant for today's mess menu.",
+    "category": "general"
+  },
+  {
+    "id": "sncc_info",
+    "title": "SNCC (Student Activity Centre)",
+    "content": "SNCC is a large open hall used for student events, gatherings, and activities, located near the Administration Block.",
+    "category": "building"
+  }
+]

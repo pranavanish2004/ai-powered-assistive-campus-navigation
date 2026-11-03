@@ -1,0 +1,3 @@
+id,name,latitude,longitude,node_type,is_accessible,landmark_description,aliases,category
+csv_node_a,CSV Node A,17.61,78.21,waypoint,true,"A CSV-imported node.",Node CSV A,general
+csv_node_b,CSV Node B,17.62,78.22,amenity,false,,,

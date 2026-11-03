@@ -370,3 +370,116 @@ hardware-dependent adapters.
 - **YOLOv8/EasyOCR/MiDaS licensing and size** — `ultralytics` is AGPL-3.0
   (same note as the original Phase 1.1 review); `torch` is a large
   dependency, hence being fully optional.
+
+---
+
+# Phase 1.4 — AI Reasoning (in progress)
+
+## 18. Milestone 1.4b — Dashboard Integration
+
+### Research findings (from the actual source, not documentation)
+
+The open-source [LambdaIITH/Dashboard](https://github.com/LambdaIITH/Dashboard)
+repository (MIT license, FastAPI backend) was downloaded and its source
+read directly before any integration code was written, per the explicit
+Phase 1.4 decision to "not assume anything about the LambdaIITH backend."
+
+**Authentication:** Google OAuth2 ID token verification restricted to
+`@iith.ac.in` email addresses, exchanged for an HS256 JWT session cookie
+(15-day expiry). A middleware enforces this on every route except an
+explicit exclusion list found in `main.py`:
+
+```python
+excluded_routes = ["/auth/login", "/auth/logout", "/docs", "/openapi.json",
+                   "/transport/", "/transport/cityBus", "/mess_menu/"]
+```
+
+**Confirmed public, unauthenticated endpoints** (the only three this
+project integrates with):
+
+| Endpoint | Data | Confirmed shape |
+|---|---|---|
+| `GET /transport/` | Campus bus + EV schedule | `{"bus": {direction: [times]}, "EV": {direction: [times]}}` (from `job_scripts/transport_scraper.py`) |
+| `GET /transport/cityBus` | City bus schedule | Unconfirmed — no scraper script found; treated generically (`raw: dict`) rather than documenting a guessed schema as fact |
+| `GET /mess_menu/` | Current week's mess menu | `{day: {meal: [items]}}` (from `job_scripts/menu_scraper.py`) |
+
+**Everything else is authenticated and out of scope:** timetable,
+cab-sharing, lost & found, marketplace, merch — all require a real
+student's Google-authenticated session, which this assistant has no
+mechanism to obtain or hold on a user's behalf.
+
+**No campus wayfinding data exists in this application at all.** A
+case-insensitive search across the entire backend for "building,"
+"library," "medical," "faculty," "department," "accessib[ility]" returned
+no relevant matches. This is a student-life utility app (cabs, mess, bus,
+timetable, lost & found), not a campus directory — confirming, rather
+than merely assuming, that RAG and the Campus Graph must remain the sole
+source of truth for location/wayfinding questions.
+
+**Operational characteristics:** no rate limiting implemented anywhere in
+the codebase; community-maintained with no SLA. Both facts directly
+informed the client design below (short timeouts, no retry storms, silent
+graceful degradation).
+
+### Design
+
+```
+interfaces/dashboard_interface.py
+   BusSchedule, CityBusSchedule, MessMenu   (value objects)
+   DashboardRepositoryInterface (ABC)         -- 3 methods only, matching
+                                                  confirmed-public data
+
+infrastructure/dashboard/
+   mock_dashboard_repository.py    -- safe default, zero network access
+   iith_dashboard_repository.py    -- real HTTP client, the 3 confirmed
+                                        endpoints only, graceful failure
+   dashboard_factory.py            -- Settings-driven selection
+```
+
+This follows the exact pattern established by `GraphRepositoryInterface`/
+`JSONGraphRepository` (Phase 1.2) and `ObjectDetectorInterface`/
+`MockObjectDetector`/`YOLOv8Detector` (Phase 1.3): an abstract interface,
+a network-free mock as the default, and a real adapter selected via one
+`Settings` field (`dashboard_backend`). Every method on the interface
+returns `None` on unavailability rather than raising, matching
+`GPSInterface.get_current_location()`'s established contract — "the
+dashboard has nothing to say right now" is expected, routine control
+flow, not an exceptional error path.
+
+### Why this stays non-core (mechanically, not just by policy)
+
+`DashboardRepositoryInterface` is never imported by `navigation/`,
+`vision/`, or any Safety Engine code. It exists solely for the API layer
+today, and will be one of several inputs the Phase 1.4d Decision Engine
+optionally consults — never a dependency anything else requires to
+function. If `dashboard_backend=iith_live` and the external service is
+down, `is_available()` returns `False` and every endpoint returns
+`available: false` with HTTP 200; nothing else in the system is affected.
+
+### API note
+
+`BusScheduleResponse.available` / `MessMenuResponse.available` (per-query:
+"was there data for this specific request") is intentionally a different
+signal from `DashboardStatusResponse.is_available` (connection-level:
+"did the last request to the dashboard succeed at all"). A live dashboard
+can be reachable but return no data for a given query (e.g. a holiday with
+no scheduled mess menu) — these are genuinely different facts, not a
+naming inconsistency, and the Flutter client (a later milestone) should
+treat them as such: check `DashboardStatusResponse` to decide whether to
+even ask, then check the per-endpoint `available` field to decide whether
+there's anything to say.
+
+## 19. Remaining Phase 1.4 Milestones (not yet implemented)
+
+- **1.4a — RAG knowledge base**: ingest static campus knowledge (buildings,
+  hostels, accessibility info, emergency contacts) using the existing
+  graph's `landmark_description` fields as a starting corpus.
+- **1.4c — Pluggable MLLM provider abstraction**: `MLLMInterface` +
+  `AnthropicProvider` / `OpenAIProvider` / `GeminiProvider` /
+  `LocalLlamaProvider`, selected via `Settings`, with a mock default —
+  decided but not yet implemented.
+- **1.4d — Decision Engine**: fuses Navigation Graph + GPS + Vision + OCR +
+  Depth + Speech + Dashboard + RAG + MLLM into one reasoning layer. The
+  largest remaining piece of new architecture in the project.
+- **1.4e — Conversational AI / context awareness**: wires 1.4a–1.4d into
+  the natural-conversation experience.

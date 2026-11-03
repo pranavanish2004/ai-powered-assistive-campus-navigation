@@ -1,0 +1,24 @@
+nodes:
+  - id: yaml_node_a
+    name: YAML Node A
+    latitude: 17.63
+    longitude: 78.23
+    node_type: landmark
+    landmark_description: "A YAML-imported node."
+  - id: yaml_node_b
+    name: YAML Node B
+    latitude: 17.64
+    longitude: 78.24
+    node_type: waypoint
+
+edges:
+  - id: yaml_edge_ab
+    from_node_id: yaml_node_a
+    to_node_id: yaml_node_b
+    path_type: outdoor_path
+
+knowledge:
+  - id: yaml_fact_1
+    title: Standalone Fact
+    content: This is a standalone knowledge fact with no associated node.
+    category: rules

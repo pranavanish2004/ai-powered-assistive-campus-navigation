@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [78.2000, 17.6000]},
+      "properties": {"id": "geo_node_a", "name": "GeoJSON Node A", "node_type": "landmark", "landmark_description": "First imported node.", "aliases": ["Node A"]}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [78.2010, 17.6010]},
+      "properties": {"id": "geo_node_b", "name": "GeoJSON Node B", "node_type": "waypoint"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "LineString", "coordinates": [[78.2000, 17.6000], [78.2010, 17.6010]]},
+      "properties": {"id": "geo_edge_ab", "from_node_id": "geo_node_a", "to_node_id": "geo_node_b", "path_type": "outdoor_path"}
+    },
+    {
+      "type": "Feature",
+      "geometry": {"type": "Point", "coordinates": [0, 0]},
+      "properties": {"name": "Missing ID"}
+    }
+  ]
+}
